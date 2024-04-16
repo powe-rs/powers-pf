@@ -1,0 +1,16 @@
+[package]
+name = "powers-pf"
+version = "0.1.0"
+edition = "2021"
+description = "Power flow solvers"
+
+[dependencies]
+log = "0.4"
+anyhow = "1"
+sparsetools = "0.2.1"
+spsolve = "0.1"
+num-complex = "0.4"
+clap = "4.5"
+
+caseformat = { path = "../../caseformat" }
+powers = { path = "../powers" }
