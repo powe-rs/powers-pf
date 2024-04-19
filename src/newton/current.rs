@@ -1,7 +1,7 @@
 use crate::newton::ProgressMonitor;
 use crate::pfopt::MPOpt;
 use powers::math::{norm_inf, J};
-use powers::{d_imis_d_v, SBus};
+use powers::{d_imis_dv, SBus};
 
 use anyhow::Result;
 use num_complex::Complex64;
@@ -125,7 +125,7 @@ pub(crate) fn newtonpf_i_polar(
             pv.iter().map(|&i| J / v[i].conj()).collect(),
         )?
         .to_csr();
-        let (d_imis_d_va, d_imis_d_vm) = d_imis_d_v(&s_bus, &y_bus, &v, false)?;
+        let (d_imis_d_va, d_imis_d_vm) = d_imis_dv(&s_bus, &y_bus, &v, false)?;
         // TODO: dImis_dVm(:, pv) = dImis_dQ(:, pv);
 
         /*
@@ -399,7 +399,7 @@ pub(crate) fn newtonpf_i_cart(
             pv.iter().map(|&i| 2.0 * v[i].im).collect(),
         )?
         .to_csr();
-        let (d_imis_d_vr, d_imis_d_vi) = d_imis_d_v(&s_bus, &y_bus, &v, true)?;
+        let (d_imis_d_vr, d_imis_d_vi) = d_imis_dv(&s_bus, &y_bus, &v, true)?;
 
         // handling of derivatives for voltage dependent loads
         // (not yet implemented) goes here

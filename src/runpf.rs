@@ -139,8 +139,9 @@ pub fn runpf(
             }
 
             // build admittance matrices
-            let (y_bus, y_f, y_t) = make_ybus(base_mva, &mpc.bus, &mpc.branch, true);
-            let (y_bus, y_f, y_t) = (y_bus.to_csr(), y_f.unwrap().to_csr(), y_t.unwrap().to_csr());
+            let (y_bus, y_br) = make_ybus(base_mva, &mpc.bus, &mpc.branch, true);
+            let (y_f, y_t) = y_br.unwrap();
+            let (y_bus, y_f, y_t) = (y_bus.to_csr(), y_f.to_csr(), y_t.to_csr());
             log::trace!("Ybus:\n{}", y_bus.to_table());
 
             let mut repeat = true;

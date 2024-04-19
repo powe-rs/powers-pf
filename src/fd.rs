@@ -64,7 +64,7 @@ pub(crate) fn make_b(
                 br.br_r = 0.0; // zero out line resistance
             }
         }
-        let (y_p, _, _) = make_ybus(base_mva, &bus, &branch, false);
+        let (y_p, _) = make_ybus(base_mva, &bus, &branch, false);
         // y_p.map(|y| -y.im)
         -y_p.imag()
     };
@@ -78,7 +78,7 @@ pub(crate) fn make_b(
                 br.br_r = 0.0; // zero out line resistance
             }
         }
-        let (y_pp, _, _) = make_ybus(base_mva, &bus, &branch, false);
+        let (y_pp, _) = make_ybus(base_mva, &bus, &branch, false);
         // Some(y_pp.map(|y| -y.im))
         Some(-y_pp.imag())
     } else {
