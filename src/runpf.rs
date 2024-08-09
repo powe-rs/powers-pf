@@ -13,15 +13,16 @@ use crate::pfmpc::PFMPC;
 use crate::pfsoln::pfsoln;
 use anyhow::Result;
 use num_complex::Complex64;
-use spsolve::Solver;
+use spsolve::{FactorSolver, Solver};
 use std::collections::HashSet;
 use std::f64::consts::PI;
 use std::time::Instant;
 
-pub fn runpf(
+pub fn runpf<F>(
     casedata: &MPC,
     mpopt: &MPOpt,
     solver: &dyn Solver<usize, f64>,
+    factor_solver: &dyn FactorSolver<usize, f64, F>,
 ) -> Result<(MPC, bool)> {
     // options
     let qlim = mpopt.pf.enforce_q_limits != GenQLimits::IgnoreLimits; // enforce Q limits on gens?
@@ -204,7 +205,7 @@ pub fn runpf(
                             &ref_,
                             &pv,
                             &pq,
-                            solver,
+                            factor_solver,
                             &mpopt,
                             Some(&progress),
                         )?

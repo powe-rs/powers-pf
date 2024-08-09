@@ -4,7 +4,7 @@ mod gauss;
 mod newton;
 mod pfmpc;
 mod pfopt;
-mod pfsoln;
+pub mod pfsoln;
 mod radial;
 mod runpf;
 

@@ -8,12 +8,10 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::ops::Deref;
 
-pub(crate) fn pfsoln(
+// Used in CPF.
+pub fn pfsoln(
     base_mva: f64,
     mpc: &mut MPC,
-    // bus: &mut [Bus],
-    // gen: &mut [Gen],
-    // branch: &mut [Branch],
     y_bus: &CSR<usize, Complex64>,
     y_f: &CSR<usize, Complex64>,
     y_t: &CSR<usize, Complex64>,

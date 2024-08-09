@@ -1,9 +1,10 @@
 use crate::newton::ProgressMonitor;
 use crate::pfopt::MPOpt;
-use powers::math::{norm_inf, J};
+use powers::math::J;
 use powers::{d_imis_dv, SBus};
 
 use anyhow::Result;
+use full::slice::norm_inf;
 use num_complex::Complex64;
 use sparsetools::coo::Coo;
 use sparsetools::csr::{CCSR, CSR};
@@ -83,7 +84,7 @@ pub(crate) fn newtonpf_i_polar(
     .concat();
 
     // check tolerance
-    let norm_f = norm_inf(&f).unwrap();
+    let norm_f = norm_inf(&f);
     if let Some(pm) = progress {
         pm.update(i, norm_f); // max Ir & Ii mismatch (p.u.)
     }
@@ -235,7 +236,7 @@ pub(crate) fn newtonpf_i_polar(
         .concat();
 
         // check for convergence
-        let norm_f = norm_inf(&f).unwrap();
+        let norm_f = norm_inf(&f);
         if let Some(pm) = progress {
             pm.update(i, norm_f);
         }
@@ -353,7 +354,7 @@ pub(crate) fn newtonpf_i_cart(
     //     };
 
     // check tolerance
-    let norm_f = norm_inf(&f).unwrap();
+    let norm_f = norm_inf(&f);
     if let Some(pm) = progress {
         pm.update(i, norm_f); // max Ir & Ii mismatch (p.u.)
     }
@@ -510,7 +511,7 @@ pub(crate) fn newtonpf_i_cart(
         .concat();
 
         // check for convergence
-        let norm_f = norm_inf(&f).unwrap();
+        let norm_f = norm_inf(&f);
         if let Some(pm) = progress {
             pm.update(i, norm_f);
         }
@@ -606,7 +607,7 @@ pub(crate) fn newtonpf_i_hybrid(
     .concat();
 
     // check tolerance
-    let norm_f = norm_inf(&f).unwrap();
+    let norm_f = norm_inf(&f);
     if let Some(pm) = progress {
         pm.update(i, norm_f); // max Ir & Ii mismatch (p.u.)
     }

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use powers::math::norm_inf;
+use full::slice::norm_inf;
 use sparsetools::csr::CSR;
 use spsolve::Solver;
 use std::iter::zip;
@@ -59,7 +59,7 @@ pub(crate) fn dc_pf(
     // set_slice(&mut va, &pvpq, &va_pvpq);
 
     // if va.abs().max() > va_threshold {
-    if norm_inf(&va).unwrap() > va_threshold {
+    if norm_inf(&va) > va_threshold {
         success = false;
     }
 

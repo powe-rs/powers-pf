@@ -1,42 +1,189 @@
-use crate::pfopt::{Alg, MPOpt};
-use powers::{make_ybus, SBus};
+use std::iter::zip;
 
-use anyhow::{format_err, Result};
+use anyhow::Result;
 use caseformat::{Branch, Bus};
+use full::iter::neg;
+use full::slice::{abs, angle, norm_inf, polar};
+use itertools::izip;
 use num_complex::Complex64;
+use powers::debug::format_rect_vec;
+use powers::{make_ybus, SBus};
 use sparsetools::coo::{CCoo, Coo};
 use sparsetools::csr::CSR;
-use spsolve::Solver;
+use spsolve::FactorSolver;
+
+use crate::pfopt::{Alg, MPOpt};
 
 /// Solves the power flow using a fast decoupled method.
 ///
 /// Solves for bus voltages given the full system admittance matrix (for
 /// all buses), the complex bus power injection vector (for all buses),
-/// the initial vector of complex bus voltages, the FDPF matrices B prime
-/// and B double prime, and column vectors with the lists of bus indices
+/// the initial vector of complex bus voltages, the FDPF matrices `B` prime
+/// and `B` double prime, and column vectors with the lists of bus indices
 /// for the swing bus, PV buses, and PQ buses, respectively. The bus voltage
 /// vector contains the set point for generator (including ref bus)
 /// buses, and the reference angle of the swing bus, as well as an initial
-/// guess for remaining magnitudes and angles. MPOPT is a MATPOWER options
+/// guess for remaining magnitudes and angles. `mpopt` is a MATPOWER options
 /// vector which can be used to set the termination tolerance, maximum
-/// number of iterations, and output options (see MPOPTION for details).
+/// number of iterations, and output options.
 /// Uses default options if this parameter is not given. Returns the
 /// final complex voltages, a flag which indicates whether it converged
 /// or not, and the number of iterations performed.
-pub(crate) fn fdpf(
-    _y_bus: &CSR<usize, Complex64>,
-    _s_bus: &dyn SBus,
-    _v0: &[Complex64],
-    _b_p: &CSR<usize, f64>,
-    _b_pp: &CSR<usize, f64>,
+#[allow(non_snake_case)]
+pub(crate) fn fdpf<F>(
+    Ybus: &CSR<usize, Complex64>,
+    Sbus: &dyn SBus,
+    V0: &[Complex64],
+    Bp: &CSR<usize, f64>,
+    Bpp: &CSR<usize, f64>,
     _ref: &[usize],
-    _pv: &[usize],
-    _pq: &[usize],
-    _solver: &dyn Solver<usize, f64>,
-    _mpopt: &MPOpt,
-    _progress: Option<&dyn ProgressMonitor>,
+    pv: &[usize],
+    pq: &[usize],
+    solver: &dyn FactorSolver<usize, f64, F>,
+    mpopt: &MPOpt,
+    progress: Option<&dyn ProgressMonitor>,
 ) -> Result<(Vec<Complex64>, bool, usize)> {
-    Err(format_err!("not implemented"))
+    let pv_pq = [pv, pq].concat();
+
+    // options
+    let tol = mpopt.pf.tolerance;
+    let max_it = mpopt.pf.max_it_fd;
+
+    // initialize
+    let mut converged = false;
+    let mut i = 0;
+    let mut V = V0.to_vec();
+    let mut Va = angle(&V);
+    let mut Vm = abs(&V);
+
+    // evaluate initial mismatch
+    let (mut P, mut Q) = {
+        let Ibus: Vec<Complex64> = Ybus * &V;
+        let Sbus = Sbus.s_bus(&Vm);
+        log::trace!("Sbus0: {}", format_rect_vec(&Sbus));
+        // mis = (V .* conj(Ybus * V) - Sbus(Vm)) ./ Vm;
+        let mis: Vec<Complex64> = izip!(&V, &Ibus, &Sbus, &Vm)
+            .map(|(V, Ibus, Sbus, Vm)| V * Ibus.conj() - Sbus / Vm)
+            .collect();
+        (
+            pv_pq.iter().map(|&i| mis[i].re).collect::<Vec<_>>(),
+            pq.iter().map(|&i| mis[i].im).collect::<Vec<_>>(),
+        )
+    };
+
+    // check tolerance
+    let normP = norm_inf(&P);
+    let normQ = norm_inf(&Q);
+    if let Some(pm) = progress {
+        pm.update(i, i, normP, normQ);
+    }
+    if normP < tol && normQ < tol {
+        converged = true;
+        log::info!("Converged!");
+    }
+    log::debug!("normP = {}, normQ = {}", normP, normQ);
+
+    // reduce B matrices
+    let Bp = Bp.select(Some(&pv_pq), Some(&pv_pq))?;
+    let Bpp = Bpp.select(Some(&pq), Some(&pq))?;
+
+    let LUp = solver.factor(Bp.cols(), Bp.colidx(), Bp.rowptr(), Bp.values())?;
+    let LUpp = solver.factor(Bpp.cols(), Bpp.colidx(), Bpp.rowptr(), Bpp.values())?;
+
+    // do P and Q iterations
+    while !converged && i < max_it {
+        // update iteration counter
+        i = i + 1;
+
+        // do P iteration, update Va //
+
+        solver.solve(&LUp, &mut P, true)?;
+        let dVa = neg(P.iter().copied());
+
+        // update voltage
+        for (&i, dVa) in zip(&pv_pq, dVa) {
+            Va[i] += dVa;
+        }
+        V = polar(&Vm, &Va);
+
+        // evaluate mismatch
+        (P, Q) = {
+            let Ibus: Vec<Complex64> = Ybus * &V;
+            let Sbus = Sbus.s_bus(&Vm);
+            // mis = (V .* conj(Ybus * V) - Sbus(Vm)) ./ Vm;
+            let mis: Vec<Complex64> = izip!(&V, &Ibus, &Sbus, &Vm)
+                .map(|(V, Ibus, Sbus, Vm)| V * Ibus.conj() - Sbus / Vm)
+                .collect();
+            (
+                pv_pq.iter().map(|&i| mis[i].re).collect::<Vec<_>>(),
+                pq.iter().map(|&i| mis[i].im).collect::<Vec<_>>(),
+            )
+        };
+
+        // check tolerance
+        let normP = norm_inf(&P);
+        let normQ = norm_inf(&Q);
+        log::debug!("normP = {}, normQ = {}", normP, normQ);
+        if let Some(pm) = progress {
+            pm.update(i, i - 1, normP, normQ);
+        }
+        if normP < tol && normQ < tol {
+            converged = true;
+            log::info!(
+                "Fast-decoupled power flow converged in {} P-iterations and {} Q-iterations.",
+                i,
+                i - 1
+            );
+        }
+
+        // do Q iteration, update Vm //
+
+        solver.solve(&LUpp, &mut Q, true)?;
+        let dVm = neg(Q.iter().copied());
+
+        // update voltage
+        zip(pq, dVm).for_each(|(&i, dVm)| Vm[i] += dVm);
+        V = polar(&Vm, &Va);
+
+        // evaluate mismatch
+        (P, Q) = {
+            let Ibus: Vec<Complex64> = Ybus * &V;
+            let Sbus = Sbus.s_bus(&Vm);
+            // mis = (V .* conj(Ybus * V) - Sbus(Vm)) ./ Vm;
+            let mis: Vec<Complex64> = izip!(&V, &Ibus, &Sbus, &Vm)
+                .map(|(V, Ibus, Sbus, Vm)| V * Ibus.conj() - Sbus / Vm)
+                .collect();
+            (
+                pv_pq.iter().map(|&i| mis[i].re).collect::<Vec<_>>(),
+                pq.iter().map(|&i| mis[i].im).collect::<Vec<_>>(),
+            )
+        };
+
+        // check tolerance
+        let normP = norm_inf(&P);
+        let normQ = norm_inf(&Q);
+        log::debug!("normP = {}, normQ = {}", normP, normQ);
+        if let Some(pm) = progress {
+            pm.update(i, i, normP, normQ);
+        }
+        if normP < tol && normQ < tol {
+            converged = true;
+            log::info!(
+                "Fast-decoupled power flow converged in {} P-iterations and {} Q-iterations.",
+                i,
+                i
+            );
+        }
+    }
+
+    if !converged {
+        log::info!(
+            "Fast-decoupled power flow did not converge in {} iterations.",
+            i
+        );
+    }
+
+    Ok((V, converged, i))
 }
 
 /// Builds the two matrices B prime and B double prime used in the fast
@@ -89,26 +236,26 @@ pub(crate) fn make_b(
 }
 
 pub trait ProgressMonitor {
-    fn update(&self, i: usize, norm_p: f64, norm_q: f64, p_update: bool);
+    fn update(&self, p: usize, q: usize, norm_p: f64, norm_q: f64);
 }
 
 pub struct PrintProgress {}
 
 impl ProgressMonitor for PrintProgress {
-    fn update(&self, i: usize, norm_p: f64, norm_q: f64, p_update: bool) {
-        if i == 0 {
+    fn update(&self, p: usize, q: usize, norm_p: f64, norm_q: f64) {
+        if p == 0 {
             println!("iteration     max mismatch (p.u.)  ");
             println!("type   #        P            Q     ");
             println!("---- ----  -----------  -----------");
             // println!("  -  %3d   %10.3e   %10.3e", i, norm_p, norm_q);
-            println!("  -  {}   {}   {}", i, norm_p, norm_q);
+            println!("  -  {}   {}   {}", p, norm_p, norm_q);
         } else {
-            if p_update {
+            if p != q {
                 // println!("  P  %3d   %10.3e   %10.3e", i, norm_p, norm_q);
-                println!("  P  {}   {}   {}", i, norm_p, norm_q);
+                println!("  P  {}   {}   {}", p, norm_p, norm_q);
             } else {
                 // println!("  Q  %3d   %10.3e   %10.3e", i, norm_p, norm_q);
-                println!("  Q  {}   {}   {}", i, norm_p, norm_q);
+                println!("  Q  {}   {}   {}", p, norm_p, norm_q);
             }
         }
     }

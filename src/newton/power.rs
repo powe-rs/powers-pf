@@ -1,10 +1,10 @@
 use crate::newton::ProgressMonitor;
 use crate::pfopt::MPOpt;
 use powers::debug::{format_f64_vec, format_polar_vec, format_rect_vec};
-use powers::math::norm_inf;
 use powers::{d_sbus_d_v, SBus};
 
 use anyhow::Result;
+use full::slice::norm_inf;
 use num_complex::Complex64;
 use sparsetools::coo::Coo;
 use sparsetools::csr::{CCSR, CSR};
@@ -79,7 +79,7 @@ pub(crate) fn newtonpf_s_polar(
     log::trace!("Sbus0: {}", format_rect_vec(&s_bus));
 
     // check tolerance
-    let norm_f = norm_inf(&f).unwrap();
+    let norm_f = norm_inf(&f);
     if let Some(pm) = progress {
         pm.update(i, norm_f);
     }
@@ -167,7 +167,7 @@ pub(crate) fn newtonpf_s_polar(
         log::trace!("Sbus_{}: {}", i, format_rect_vec(&s_bus));
 
         // check for convergence
-        let norm_f = norm_inf(&f).unwrap();
+        let norm_f = norm_inf(&f);
         if let Some(pm) = progress {
             pm.update(i, norm_f);
         }

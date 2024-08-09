@@ -14,6 +14,7 @@ pub enum Alg {
     SUM = 4,
 }
 
+#[derive(Copy, Clone)]
 pub enum Sum {
     POWER,
     CURRENT,
@@ -21,11 +22,13 @@ pub enum Sum {
 }
 
 /// Type of nodal balance equation.
+#[derive(Copy, Clone)]
 pub enum NodalBalance {
     POWER,
     CURRENT,
 }
 
+#[derive(Copy, Clone)]
 pub enum BusVoltage {
     /// bus voltage variables represented in polar coordinates
     POLAR,
@@ -54,6 +57,7 @@ pub struct MPOpt {
     pub exp: ExpOpt,
 }
 
+#[derive(Clone)]
 pub struct PFOpt {
     // AC power flow algorithm.
     pub algorithm: Alg,
@@ -92,12 +96,12 @@ impl Default for PFOpt {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct ExpOpt {
     pub sys_wide_zip_loads: SysWideZipLoads,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct SysWideZipLoads {
     pub pw: Option<[f64; 3]>,
     pub qw: Option<[f64; 3]>,
