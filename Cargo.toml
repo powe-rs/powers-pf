@@ -1,18 +1,20 @@
 [package]
 name = "powers-pf"
+description = "Power flow algorithms"
 version = "0.1.0"
+license = "BSD-3-Clause"
+repository = "https://github.com/powe-rs/powers-pf"
 edition = "2021"
-description = "Power flow solvers"
 
 [dependencies]
 log = "0.4"
 anyhow = "1"
 itertools = "0.13"
-sparsetools = "0.2.1"
+sparsetools = "0.2.3"
 spsolve = "0.1"
 num-complex = "0.4"
 clap = "4.5"
 
-full = { path = "../../full" }
-caseformat = { path = "../../caseformat" }
-powers = { path = "../powers" }
+full = "0.3"
+caseformat = "0.1"
+powers = "0.2"
