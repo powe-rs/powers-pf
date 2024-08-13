@@ -194,7 +194,7 @@ pub fn runpf<F>(
                     }
                     Alg::FDBX | Alg::FDXB => {
                         let (b_p, b_pp) = fd::make_b(base_mva, &mpc.bus, &mpc.branch, alg, true);
-                        let (b_p, b_pp) = (b_p.to_csr(), b_pp.unwrap().to_csr());
+                        let (b_p, b_pp) = (b_p, b_pp.unwrap());
                         let progress = fd::PrintProgress {};
                         fd::fdpf(
                             &y_bus,

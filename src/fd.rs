@@ -8,7 +8,7 @@ use itertools::izip;
 use num_complex::Complex64;
 use powers::debug::format_rect_vec;
 use powers::{make_ybus, SBus};
-use sparsetools::coo::{CCoo, Coo};
+use sparsetools::csr::CCSR;
 use sparsetools::csr::CSR;
 use spsolve::FactorSolver;
 
@@ -195,7 +195,7 @@ pub(crate) fn make_b(
     branch: &[Branch],
     alg: Alg,
     double_prime: bool,
-) -> (Coo<usize, f64>, Option<Coo<usize, f64>>) {
+) -> (CSR<usize, f64>, Option<CSR<usize, f64>>) {
     // Form Bp (B prime).
     let mut bus = bus.to_vec(); // modify a copy of bus
     for b in bus.iter_mut() {
@@ -213,7 +213,7 @@ pub(crate) fn make_b(
         }
         let (y_p, _) = make_ybus(base_mva, &bus, &branch, false);
         // y_p.map(|y| -y.im)
-        -y_p.imag()
+        -y_p.to_csr().imag()
     };
 
     let b_pp = if double_prime {
@@ -227,7 +227,7 @@ pub(crate) fn make_b(
         }
         let (y_pp, _) = make_ybus(base_mva, &bus, &branch, false);
         // Some(y_pp.map(|y| -y.im))
-        Some(-y_pp.imag())
+        Some(-y_pp.to_csr().imag())
     } else {
         None
     };

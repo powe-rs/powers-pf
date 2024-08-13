@@ -1,6 +1,5 @@
 use crate::newton::ProgressMonitor;
 use crate::pfopt::MPOpt;
-use powers::math::J;
 use powers::{d_imis_dv, SBus};
 
 use anyhow::Result;
@@ -123,7 +122,7 @@ pub(crate) fn newtonpf_i_polar(
             nb,
             pv.to_vec(),
             pv.to_vec(),
-            pv.iter().map(|&i| J / v[i].conj()).collect(),
+            pv.iter().map(|&i| Complex64::i() / v[i].conj()).collect(),
         )?
         .to_csr();
         let (d_imis_d_va, d_imis_d_vm) = d_imis_dv(&s_bus, &y_bus, &v, false)?;
@@ -381,7 +380,7 @@ pub(crate) fn newtonpf_i_cart(
             nb,
             pv.to_vec(),
             pv.to_vec(),
-            pv.iter().map(|&i| J / v[i].conj()).collect(),
+            pv.iter().map(|&i| Complex64::i() / v[i].conj()).collect(),
         )?
         .to_csr();
         let d_v2_d_vr = Coo::new(
